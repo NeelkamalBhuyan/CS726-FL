@@ -42,6 +42,29 @@ class Server:
         for c in self.all_clients:
             self.L[c] = c.loss_history[-1] + self.gamma*self.L[c]
             self.N[c] = int(c in self.selected_clients) + self.gamma*self.N[c]
+            self.A[c] = self.p[c.id]*(self.L[c]/self.N[c] + 0)
+
+        sorted_A = sorted(self.A.items(), key = lambda kv: kv[1], reverse = True)
+        selected_clients = []
+        for i in range(num_clients):
+            selected_clients.append(sorted_A[i][0])
+
+        return selected_clients.copy()
+
+    def policy2(self, possible_clients, num_clients, my_round):
+        if my_round ==0:
+            _,_, num_samples = self.get_clients_info(possible_clients)
+            self.p = num_samples.copy()
+            p_sum = sum(self.p.values())
+            for c in self.p.keys():
+                self.p[c] = self.p[c]/p_sum
+
+            return possible_clients.copy()
+
+        self.T = 1 + self.gamma*self.T
+        for c in self.all_clients:
+            self.L[c] = c.loss_history[-1] + self.gamma*self.L[c]
+            self.N[c] = int(c in self.selected_clients) + self.gamma*self.N[c]
             self.A[c] = self.p[c.id]*(self.L[c]/self.N[c] + np.sqrt(2*np.log(self.T)/self.N[c]))
 
         sorted_A = sorted(self.A.items(), key = lambda kv: kv[1], reverse = True)
@@ -51,6 +74,13 @@ class Server:
 
         return selected_clients.copy()
 
+    def policy3(self, possible_clients, num_clients, my_round):
+        np.random.seed(my_round)
+        client_pool = possible_clients.copy()
+        for c in self.selected_clients:
+            client_pool.remove(c)
+        selected_clients = np.random.choice(client_pool, num_clients, replace=False)
+        return selected_clients.copy()
 
 
     def select_clients(self, my_round, possible_clients, num_clients=20):
@@ -68,7 +98,10 @@ class Server:
         self.all_clients = possible_clients.copy()
         num_clients = min(num_clients, len(possible_clients))
         #self.selected_clients = self.policy0(possible_clients, num_clients, my_round)
-        self.selected_clients = self.policy1(possible_clients, num_clients, my_round)
+        #self.selected_clients = self.policy1(possible_clients, num_clients, my_round)
+        #self.selected_clients = self.policy2(possible_clients, num_clients, my_round)
+        self.selected_clients = self.policy3(possible_clients, num_clients, my_round)
+        
         for c in possible_clients:
             c.loss_history.append(0)
 
